@@ -9,7 +9,7 @@ from enlace import *
 import time
 import numpy as np
 
-serialName = "COM4"
+serialName = "/dev/ttyACM0"
 
 HEAD_SIZE = 12
 PAYLOAD_SIZE = 50
