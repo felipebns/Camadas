@@ -16,14 +16,18 @@ HEAD_SIZE = 12
 PAYLOAD_SIZE = 50
 EOP = b"\xFF\xFF\xFF"
 
+def clear_log():
+    with open("log.txt", "w") as log:
+        log.write("")
+
 def write_log(is_envio, type_package, len_package, package_num, total_packages, crc):
 
     with open("log.txt", "a") as log:
         date = time.strftime("%d/%m/%Y %H:%M:%S", time.localtime())
         if is_envio:
-            log.write(f'{date} / envio / {type_package} / {len_package} / {package_num} / {total_packages} / {crc}\n')
+            log.write(f'{date} / resposta / {type_package} / {len_package} / {package_num} / {total_packages} \n')
         else:
-            log.write(f'{date} / receb / {type_package} / {len_package}\n')
+            log.write(f'{date} / recebido / {type_package} / {len_package}\n')
 
 def create_datagram(type, error_type, pacote_num, total_packages, payload_size, payload):
     # Cria o cabeçalho do pacote
@@ -49,6 +53,8 @@ def prepare_package(head):
 
 def main():
     try:
+        clear_log()
+        
         print("Iniciou o main\n")
         com1 = enlace(serialName)
         com1.enable()
@@ -117,7 +123,7 @@ def main():
                     com1.sendData(msg)
 
 
-                    write_log(True, 1, 15, 1, 1, expected)
+                    write_log(True, 1, 15, 1, 1, 0)
 
             else:
                 # Pegando o resto do pacote, e confirmando o recebimento:
@@ -129,12 +135,6 @@ def main():
 
                 write_log(False, 1, len_payload+15, 0, 0, 0)
                 expected = calculator.checksum(payload)
-                
-                print(expected)
-                print(crc)
-                print('AAAAAAAAAAAAAAAAAAAAAA')
-
-                ##### CONTINUAR DAQUI!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 if eop != EOP:
                     print('EOP TA ERRADO')
@@ -145,37 +145,35 @@ def main():
                     msg = create_datagram(3, 0, n_do_pacote, total_pacotes, 0, b'')
                     com1.sendData(msg)
 
-                    write_log(True, 3, 15, n_do_pacote, total_pacotes, expected)
+                    write_log(True, 3, 15, n_do_pacote, total_pacotes, 0)
                 
                 # Pegando o resto dos pacotes:
                 while i <= (total_pacotes):
                     # Tratamento caso seja o ultimo pacote
                     if i == total_pacotes:
                         head, _ = com1.getData(12)
-                        tipo, tipo_erro, n_do_pacote, total_pacotes, crc, len_payload = prepare_package(head)
+                        tipo, tipo_erro, n_do_pacote, total_pacotes, len_payload, crc = prepare_package(head)
+
+                        write_log(False, 1, len_payload+15, 0, 0, 0)
+
+                        resto, _ = com1.getData(len_payload + 3)
+                        payload = resto[:-3]
+                        eop = resto[-3:]
 
                         expected = calculator.checksum(payload)
 
+                        if eop != EOP:
+                            print('EOP TA ERRADO')
+                            return
+                        
                         if expected == crc:
-
-                            write_log(False, 1, len_payload+15, 0, 0, 0)
-
-                            resto, _ = com1.getData(len_payload + 3)
-                            payload = resto[:-3]
-                            eop = resto[-3:]
-
-                            if eop != EOP:
-                                print('EOP TA ERRADO')
-                                return
-                            
                             recebido.append(payload)
                             msg = create_datagram(3, 0, n_do_pacote, total_pacotes, 0, b'')
                             com1.sendData(msg)
 
+                            write_log(True, 3, 15, n_do_pacote, total_pacotes, 0)
 
-                            write_log(True, 3, 15, n_do_pacote, total_pacotes, expected)
-
-                            i += 1
+                        i += 1
                
                     else:
                         print(f'\n\nNOVO PACOTE')
@@ -183,34 +181,35 @@ def main():
                         head = full_package[0:12]
                         payload = full_package[12:-3]
                         eop = full_package[-3:]
-                        tipo, tipo_erro, n_do_pacote, total_pacotes, crc, len_payload = prepare_package(head)
+                        tipo, tipo_erro, n_do_pacote, total_pacotes, len_payload, crc = prepare_package(head)
 
                         write_log(False, 1, len_payload+15, 0, 0, 0)
 
                         expected = calculator.checksum(payload)
 
-                        if crc == expected:
+                        print(f'CRC esperado: {expected}')
+                        print(f'CRC recebido: {crc}')
 
-                            print(f"Número do pacote: {n_do_pacote}\n")
+                        print(f"Número do pacote: {n_do_pacote}\n")
 
-                            if eop == EOP and n_do_pacote == i and len_payload == len(payload):
-                                recebido.append(payload)
-                                msg = create_datagram(3, 0, n_do_pacote, total_pacotes, 0, b'')
-                                com1.sendData(msg)
+                        if eop == EOP and n_do_pacote == i and len_payload == len(payload) and crc == expected:
+                            recebido.append(payload)
+                            msg = create_datagram(3, 0, n_do_pacote, total_pacotes, 0, b'')
+                            com1.sendData(msg)
 
 
-                                write_log(True, 3, 15, n_do_pacote, total_pacotes, expected)
+                            write_log(True, 3, 15, n_do_pacote, total_pacotes, 0)
 
-                                i += 1
-                            else:
-                                print(f'Repetindo o pacote {i}')
-                                recebido.pop(-1)
-                                msg = create_datagram(2, 0, i, total_pacotes, 0, b'')
-                                com1.sendData(msg)
+                            i += 1
+                        else:
+                            print(f'Repetindo o pacote {i}')
+                            recebido.pop(-1)
+                            msg = create_datagram(2, 0, i, total_pacotes, 0, b'')
+                            com1.sendData(msg)
 
-                                write_log(True, 2, 15, n_do_pacote, total_pacotes, expected)
+                            write_log(True, 2, 15, n_do_pacote, total_pacotes, 0)
 
-                                i -= 1
+                            i -= 1
 
         print('\n=======================================================\n')
         
