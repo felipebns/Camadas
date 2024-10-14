@@ -101,7 +101,7 @@ def main():
     taxa_amostragem = 44100
     signal = generate_signal(freq1, freq2, taxa_amostragem)
 
-    sd.play(signal, taxa_amostragem) #nao toca
+    sd.play(signal, taxa_amostragem) 
     # aguarda fim do audio
     sd.wait()
     
