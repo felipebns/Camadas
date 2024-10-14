@@ -1,10 +1,12 @@
 
 #importe as bibliotecas
-from suaBibSignal import *
+# from suaBibSignal import signalMeu
 import numpy as np
 import sounddevice as sd
 import matplotlib.pyplot as plt
 import sys
+from scipy import signal
+from scipy.fftpack import fft, fftshift
 
 #funções caso queriram usar para sair...
 def signal_handler(signal, frame):
@@ -16,7 +18,7 @@ def todB(s):
     sdB = 10*np.log10(s)
     return(sdB)
 
-def getFreq (tecla) -> tuple:
+def get_freq (tecla) -> tuple:
     frequencias = {
         '1':[1209, 679],
         '2':[1336, 679],
@@ -36,7 +38,41 @@ def getFreq (tecla) -> tuple:
         '#':[941, 1477]
     }
     return frequencias[tecla][0], frequencias[tecla][1]
-     
+
+def calcFFT(signal, fs):
+    # https://docs.scipy.org/doc/scipy/reference/tutorial/fftpack.html
+    #y  = np.append(signal, np.zeros(len(signal)*fs))
+    N  = len(signal)
+    T  = 1/fs
+    xf = np.linspace(-1.0/(2.0*T), 1.0/(2.0*T), N)
+    yf = fft(signal)
+    return(xf, fftshift(yf))
+
+def plotFFT(signal, fs):
+    x,y = calcFFT(signal, fs)
+    plt.figure()
+    plt.plot(x, np.abs(y))
+    plt.title('Fourier')
+
+def generate_signal(freq1, freq2, taxa_amostragem):
+    t_inicial = 0
+    t_final = 0.5 #aumentando o tempo para poder tocar
+    tamanho_intervalo = (1/taxa_amostragem)
+    t = np.arange(t_inicial,t_final,tamanho_intervalo)
+
+    w1 = 2*np.pi*freq1
+    w2 = 2*np.pi*freq2
+    sen1 = np.sin(w1*t)
+    sen2 = np.sin(w2*t)
+
+    signal = sen1 + sen2
+    plt.plot(t[:500], signal[:500])
+    plt.title('Signal')
+    plt.ylabel('y')
+    plt.xlabel('t')
+
+    return signal
+    
 
 def main():
     
@@ -49,46 +85,29 @@ def main():
 #OK # Lembre-se que a senoide pode ser construída com A*sin(2*pi*f*t).
 #OK # O tamanho da lista tempo estará associada à duração do som. A intensidade é controlada pela constante A (amplitude da senoide). Construa com amplitude 1.
 #OK # Some as duas senoides. A soma será o sinal a ser emitido.
-    # Utilize a funcao da biblioteca sounddevice para reproduzir o som. Entenda seus argumento.
+#OK # Utilize a funcao da biblioteca sounddevice para reproduzir o som. Entenda seus argumento.
     # Você pode gravar o som com seu celular ou qualquer outro microfone para o lado receptor decodificar depois. Ou reproduzir enquanto o receptor já capta e decodifica.
     
-    # construa o gráfico do sinal emitido e o gráfico da transformada de Fourier. Cuidado, como as frequencias sao relativamente altas, voce deve plotar apenas alguns pontos (alguns periodos) para conseguirmos ver o sinal
+#OK # construa o gráfico do sinal emitido e o gráfico da transformada de Fourier. Cuidado, como as frequencias sao relativamente altas, voce deve plotar apenas alguns pontos (alguns periodos) para conseguirmos ver o sinal
     
 
     # Escolhendo tecla
-    tecla = '3'
+    tecla = 'X'
 
     #Obtendo frequencias da tecla
-    freq1, freq2 = getFreq(tecla)
+    freq1, freq2 = get_freq(tecla)
 
     #Gerando senoide resultante
-    t_inicial = 0
-    t_final = 0.01
     taxa_amostragem = 44100
-    tamanho_intervalo = (1/taxa_amostragem)*t_final
-    t = np.arange(t_inicial,t_final,tamanho_intervalo)
+    signal = generate_signal(freq1, freq2, taxa_amostragem)
 
-    w1 = 2*np.pi*freq1
-    w2 = 2*np.pi*freq2
-    sen1 = np.sin(w1*t)
-    sen2 = np.sin(w2*t)
-
-    sen = sen1 + sen2
-    plt.plot(t, sen)
-    plt.show()
-
-    # print("Inicializando encoder")
-    # print("Aguardando usuário")
-    # print("Gerando Tons base")
-    # print("Executando as senoides (emitindo o som)")
-    # print("Gerando Tom referente ao símbolo : {}".format(NUM))
-    # sd.play(tone, fs)
-    # # aguarda fim do audio
-    # sd.wait()
+    sd.play(signal, taxa_amostragem) #nao toca
+    # aguarda fim do audio
+    sd.wait()
     
-    # plotFFT(self, signal, fs)
-    # # Exibe gráficos
-    # plt.show()
+    plotFFT(signal, taxa_amostragem) #nao entendi fourier
+    # Exibe gráficos
+    plt.show()
     
 
 if __name__ == "__main__":
