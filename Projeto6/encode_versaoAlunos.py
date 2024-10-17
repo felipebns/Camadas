@@ -1,15 +1,16 @@
 
 #importe as bibliotecas
-# from suaBibSignal import signalMeu
 import numpy as np
 import sounddevice as sd
 import matplotlib.pyplot as plt
 import sys
 from scipy import signal
 from scipy.fftpack import fft, fftshift
+from suaBibSignal import signalMeu
+
 
 #funções caso queriram usar para sair...
-def signal_handler(signal, frame):
+def sinal_handler(sinal, frame):
         print('You pressed Ctrl+C!')
         sys.exit(0)
 
@@ -39,24 +40,27 @@ def get_freq (tecla) -> tuple:
     }
     return frequencias[tecla][0], frequencias[tecla][1]
 
-def calcFFT(signal, fs):
+def calcFFT(sinal, fs):
     # https://docs.scipy.org/doc/scipy/reference/tutorial/fftpack.html
-    #y  = np.append(signal, np.zeros(len(signal)*fs))
-    N  = len(signal)
+    #y  = np.append(sinal, np.zeros(len(sinal)*fs))
+    N  = len(sinal)
     T  = 1/fs
     xf = np.linspace(-1.0/(2.0*T), 1.0/(2.0*T), N)
-    yf = fft(signal)
+    yf = fft(sinal)
     return(xf, fftshift(yf))
 
-def plotFFT(signal, fs):
-    x,y = calcFFT(signal, fs)
+def plotFFT(sinal, fs):
+    x,y = calcFFT(sinal, fs)
     plt.figure()
     plt.plot(x, np.abs(y))
-    plt.title('Fourier')
+    plt.title('Fourier Emitido')
+    plt.ylabel('Magnitude')
+    plt.xlabel('Frequência')
+    plt.xlim(0, 25000) #não mostra as frequências negativas
 
-def generate_signal(freq1, freq2, taxa_amostragem):
+def generate_sinal(freq1, freq2, taxa_amostragem):
     t_inicial = 0
-    t_final = 0.5 #aumentando o tempo para poder tocar
+    t_final = 1 #aumentando o tempo para poder tocar
     tamanho_intervalo = (1/taxa_amostragem)
     t = np.arange(t_inicial,t_final,tamanho_intervalo)
 
@@ -65,17 +69,16 @@ def generate_signal(freq1, freq2, taxa_amostragem):
     sen1 = np.sin(w1*t)
     sen2 = np.sin(w2*t)
 
-    signal = sen1 + sen2
-    plt.plot(t[:500], signal[:500])
-    plt.title('Signal')
-    plt.ylabel('y')
+    sinal = sen1 + sen2
+    plt.plot(t[:500], sinal[:500])
+    plt.title('Sinal Emitido')
+    plt.ylabel('Magnitude') #'Amplitude' variação da pressão do ar -> Intensidade do som
     plt.xlabel('t')
 
-    return signal
+    return sinal
     
 
 def main():
-    
    
     #********************************************instruções*********************************************** 
     # Seu objetivo aqui é gerar duas senoides. Cada uma com frequencia corresposndente à tecla pressionada, conforme tabela DTMF.
@@ -89,25 +92,25 @@ def main():
     # Você pode gravar o som com seu celular ou qualquer outro microfone para o lado receptor decodificar depois. Ou reproduzir enquanto o receptor já capta e decodifica.
     
 #OK # construa o gráfico do sinal emitido e o gráfico da transformada de Fourier. Cuidado, como as frequencias sao relativamente altas, voce deve plotar apenas alguns pontos (alguns periodos) para conseguirmos ver o sinal
-    
 
     # Escolhendo tecla
-    tecla = 'X'
+    tecla = '5'
 
     #Obtendo frequencias da tecla
     freq1, freq2 = get_freq(tecla)
 
     #Gerando senoide resultante
     taxa_amostragem = 44100
-    signal = generate_signal(freq1, freq2, taxa_amostragem)
+    sinal = generate_sinal(freq1, freq2, taxa_amostragem)
 
-    sd.play(signal, taxa_amostragem) 
+    sd.play(sinal, taxa_amostragem) 
     # aguarda fim do audio
     sd.wait()
     
-    plotFFT(signal, taxa_amostragem) #nao entendi fourier
-    # Exibe gráficos
-    plt.show()
+    # plotFFT(sinal, taxa_amostragem) 
+    # # Exibe gráficos
+    # plt.show()
+
     
 
 if __name__ == "__main__":
